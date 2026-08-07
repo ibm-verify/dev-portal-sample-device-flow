@@ -2,7 +2,7 @@ extends layout.pug
 
 block content
 	.container.main
-		h3 Welcome #{userInfo.displayName},
+		h3 Welcome #{userInfo.displayName || userInfo.name || userInfo.preferred_username},
 		p.lead.mb-5 You have successfully authenticated with IBM Security Verify.
 		p Below is the information retrieved from the <code>userInfo</code> endpoint for the authenticated user.
 	.container
