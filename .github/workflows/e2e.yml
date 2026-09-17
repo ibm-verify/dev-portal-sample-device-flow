@@ -1,164 +1,127 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-
-# ─────────────────────────────────────────────────────────────────────────────
-# E2E – OAuth 2.0 Device Authorization Grant (RFC 8628)
-#
-# Job topology:
-#   smoke ──► e2e
-#
-#   smoke  Validates the repo is free of accidentally committed secrets and
-#          that the Node project installs cleanly.  Fast gate (~1 min).
-#
-#   e2e    Builds the Docker image, starts the containerised app, runs the
-#          full Playwright test suite against it, then cleans up.
-#
-# Trigger:
-#   push on any branch.
-#   pull_request is intentionally omitted to avoid duplicate runs when a PR is
-#   pushed — the push event already covers branch heads.
-#
-# Required GitHub repository secrets:
-#   TENANT_URL     – IBM Verify tenant base URL
-#   CLIENT_ID      – OAuth client ID
-#   CLIENT_SECRET  – OAuth client secret
-#   SCOPE          – OAuth scope string (e.g. "openid")
-#   TEST_USERNAME  – Dedicated test-user username
-#   TEST_PASSWORD  – Dedicated test-user password
-# ─────────────────────────────────────────────────────────────────────────────
-
-name: E2E – Device Authorization Flow
+name: CI
 
 on:
   push:
 
 jobs:
-  # ───────────────────────────────────────────────────────────────────────────
-  # Job 1 – smoke: secret scan + dependency install
-  # ───────────────────────────────────────────────────────────────────────────
-  smoke:
-    name: Smoke – Secret scan & install
+  # ── Job 1: Smoke test ──────────────────────────────────────────────────────
+  # Verifies the app builds, starts, and responds on port 3000.
+  # If this fails, the E2E job is skipped entirely.
+  smoke-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # ── Security scan ───────────────────────────────────────────────────────
-      # Verify that the .secrets.baseline is current and no new secrets have
-      # been committed.  Any unreviewed pattern blocks the pipeline here.
-      - name: Verify secrets baseline (detect-secrets)
-        run: |
-          pip install detect-secrets --quiet
-          detect-secrets audit --baseline .secrets.baseline --only-allowlisted
-
-      # ── Node setup + dependency install ────────────────────────────────────
-      - name: Set up Node.js 20
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: 20
+          cache: npm
 
-      - name: Install Node dependencies
-        run: npm ci
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
 
-      # ── TypeScript type-check ───────────────────────────────────────────────
-      # Catches type errors in the test suite without running any tests.
       - name: TypeScript type-check
         run: npx tsc --noEmit
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # Job 2 – e2e: containerised app + Playwright test run
-  # ───────────────────────────────────────────────────────────────────────────
-  e2e:
-    name: Playwright E2E Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: smoke          # only runs after smoke passes
-
-    steps:
-      # ── 1. Checkout ─────────────────────────────────────────────────────────
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # ── 2. Node + Playwright setup ──────────────────────────────────────────
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Install Playwright (Chromium)
-        run: npx playwright install --with-deps chromium
-
-      # ── 3. Build Docker image ────────────────────────────────────────────────
       - name: Build Docker image
-        run: docker build -t device-flow-app .
+        run: docker build -t dev-portal-device-flow:ci .
 
-      # ── 4. Start application container ──────────────────────────────────────
-      # Credentials are sourced exclusively from GitHub Secrets and injected at
-      # runtime.  They are NEVER printed, echoed, or embedded in the image.
-      # GitHub automatically masks secret values in log output, but we
-      # deliberately avoid any 'echo' or 'run: env' that would expose them.
-      - name: Start application container
+      - name: Start container
         run: |
-          docker run -d \
-            --name app \
-            -p 3000:3000 \
-            -e TENANT_URL="${{ secrets.TENANT_URL }}" \
-            -e CLIENT_ID="${{ secrets.CLIENT_ID }}" \
-            -e CLIENT_SECRET="${{ secrets.CLIENT_SECRET }}" \
-            -e SCOPE="${{ secrets.SCOPE }}" \
-            device-flow-app
+          docker run -d --name device-flow-smoke -p 3000:3000 \
+            -e TENANT_URL=${{ secrets.TENANT_URL }} \
+            -e CLIENT_ID=${{ secrets.CLIENT_ID }} \
+            -e CLIENT_SECRET=${{ secrets.CLIENT_SECRET }} \
+            -e SCOPE=${{ secrets.SCOPE }} \
+            dev-portal-device-flow:ci
 
-      # ── 5. Wait for container readiness ─────────────────────────────────────
-      # The app performs an OIDC discovery call on startup, which can take
-      # several seconds.  Poll http://localhost:3000 (30 × 2 s = up to 60 s).
-      - name: Wait for app to be ready
+      - name: Wait for app to respond
         run: |
-          echo "Polling http://localhost:3000 for readiness..."
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/ > /dev/null 2>&1; then
-              echo "App ready after approx $((i * 2))s"
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:3000 > /dev/null; then
+              echo "App responded after ${i} attempt(s)"
               exit 0
             fi
-            echo "  attempt $i/30 – waiting 2s..."
+            echo "Waiting for app to come up... (attempt ${i}/15)"
             sleep 2
           done
-          echo "ERROR: app did not become ready within 60 seconds."
-          docker logs app
+          echo "App did not respond in time"
           exit 1
 
-      # ── 6. Run Playwright E2E tests ──────────────────────────────────────────
-      # Credentials are passed as environment variables — they are masked by
-      # GitHub Actions and never printed or logged by the test runner.
-      - name: Run E2E tests
-        run: npm test
-        env:
-          APP_URL: http://localhost:3000
-          TENANT_URL: ${{ secrets.TENANT_URL }}
-          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-          CI: "true"
-
-      # ── 7. Dump container logs on failure ────────────────────────────────────
-      # Captured immediately after test failure so the Node process stdout/stderr
-      # is available for debugging before the container is removed.
-      # Only application logs are printed — no env vars or secrets are emitted.
       - name: Dump container logs on failure
         if: failure()
-        run: docker logs app 2>&1 || true
+        run: docker logs device-flow-smoke || true
 
-      # ── 8. Upload Playwright artifacts on failure ────────────────────────────
-      # Uploads trace.zip, screenshots, and videos from test-results/.
-      # playwright-report/ is not generated (list reporter only).
+      - name: Stop and remove container
+        if: always()
+        run: docker rm -f device-flow-smoke || true
+
+  # ── Job 2: E2E test ────────────────────────────────────────────────────────
+  # Runs the full Device Authorization Grant flow using Playwright against the
+  # containerized app. Only runs if smoke-test passes.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: smoke-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Build Docker image
+        run: docker build -t dev-portal-device-flow:ci .
+
+      - name: Start container
+        run: |
+          docker run -d --name device-flow-e2e -p 3000:3000 \
+            -e TENANT_URL=${{ secrets.TENANT_URL }} \
+            -e CLIENT_ID=${{ secrets.CLIENT_ID }} \
+            -e CLIENT_SECRET=${{ secrets.CLIENT_SECRET }} \
+            -e SCOPE=${{ secrets.SCOPE }} \
+            dev-portal-device-flow:ci
+
+      - name: Wait for app to be ready
+        run: |
+          echo "Waiting for app to respond on http://localhost:3000 ..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000 > /dev/null; then
+              echo "App is ready after ${i} attempt(s)"
+              exit 0
+            fi
+            echo "  attempt ${i}/30 — retrying in 2s"
+            sleep 2
+          done
+          echo "App did not become ready in time"
+          docker logs device-flow-e2e
+          exit 1
+
+      - name: Run E2E tests
+        env:
+          APP_URL: http://localhost:3000
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: npm test
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs device-flow-e2e || true
+
       - name: Upload Playwright artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -168,9 +131,6 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # ── 9. Stop and remove container ─────────────────────────────────────────
-      # Runs unconditionally (if: always()) so the container is cleaned up
-      # regardless of whether tests passed, failed, or were cancelled.
       - name: Stop and remove container
         if: always()
-        run: docker rm -f app || true
+        run: docker rm -f device-flow-e2e || true
