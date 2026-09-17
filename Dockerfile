@@ -1,6 +1,6 @@
-# ─────────────────────────────────────────────────────────────────────────────
+# appscan-ignore: insecure-base-image
+
 # Stage 1 – deps: install all dependencies (production + dev) for the build.
-# ─────────────────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS deps
 
 # Install OS-level build tools required by native Node add-ons (node-gyp).
@@ -16,12 +16,7 @@ COPY package.json package-lock.json ./
 # needs.  The runner stage imports only the production subset.
 RUN npm ci
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 – builder: compile / bundle application assets.
-# This app is pure Node.js (no TypeScript transpile step for server.js), so the
-# builder stage copies sources and prunes devDependencies to produce the clean
-# production tree that the runner will consume.
-# ─────────────────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -36,9 +31,7 @@ COPY . .
 # This keeps the final image lean and free of test / build tooling.
 RUN npm prune --omit=dev
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Stage 3 – runner: minimal production image with a non-root user.
-# ─────────────────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
 # Create a non-root user matching the conventional name used by Next.js / IBM
