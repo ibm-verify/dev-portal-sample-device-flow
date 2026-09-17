@@ -18,6 +18,49 @@ This sample shows how to use the openid-client library with Node.js to:
 
 ![screenshot](screenshot.png)
 
+## CI Pipeline
+
+Every push to any branch automatically runs two sequential checks:
+
+| Job | What it does |
+|---|---|
+| **Smoke test** | Builds the Docker image, starts the container, verifies the app responds on port 3000, and runs a TypeScript type-check |
+| **E2E test** | Runs only if the smoke test passes. Uses Playwright to execute the full Device Authorization Grant flow against the IBM Verify dev tenant — initiates the device flow, authenticates in an isolated browser context, waits for token polling to complete, verifies all user claims are returned, logs out |
+
+If the smoke test fails, the E2E job is skipped. If either job fails, the workflow is marked as failed on the branch.
+
+### Running E2E tests locally
+
+1. Add the following to your `.env` file (in addition to the existing variables):
+```
+TEST_USERNAME=<ibm-verify-test-username>
+TEST_PASSWORD=<ibm-verify-test-password>
+```
+
+2. Build and start the app in Docker:
+```bash
+docker build -t dev-portal-device-flow:ci . && \
+docker run -d --name device-flow-e2e -p 3000:3000 --env-file .env dev-portal-device-flow:ci
+```
+
+3. Run the Playwright tests:
+```bash
+APP_URL=http://localhost:3000 \
+TEST_USERNAME=<username> \
+TEST_PASSWORD=<password> \
+npx playwright test
+```
+
+4. Cleanup:
+```bash
+docker rm -f device-flow-e2e
+```
+
+On failure, traces and screenshots are saved to `test-results/` — inspect them with:
+```bash
+npx playwright show-trace test-results/<test-name>/trace.zip
+```
+
 ## Troubleshooting
 - CLI displaying `npm ERR! code E401` when trying to run `npm install`. Delete the package-lock.json file and run `npm install` again.
 
