@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  # ── Job 1: Smoke test ──────────────────────────────────────────────────────
+  # Verifies the app builds, starts, and responds on port 3000.
+  # If this fails, the E2E job is skipped entirely.
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript type-check
+        run: npx tsc --noEmit
+
+      - name: Build Docker image
+        run: docker build -t dev-portal-device-flow:ci .
+
+      - name: Start container
+        run: |
+          docker run -d --name device-flow-smoke -p 3000:3000 \
+            -e TENANT_URL=${{ secrets.TENANT_URL }} \
+            -e CLIENT_ID=${{ secrets.CLIENT_ID }} \
+            -e CLIENT_SECRET=${{ secrets.CLIENT_SECRET }} \
+            -e SCOPE=${{ secrets.SCOPE }} \
+            dev-portal-device-flow:ci
+
+      - name: Wait for app to respond
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:3000 > /dev/null; then
+              echo "App responded after ${i} attempt(s)"
+              exit 0
+            fi
+            echo "Waiting for app to come up... (attempt ${i}/15)"
+            sleep 2
+          done
+          echo "App did not respond in time"
+          exit 1
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs device-flow-smoke || true
+
+      - name: Stop and remove container
+        if: always()
+        run: docker rm -f device-flow-smoke || true
+
+  # ── Job 2: E2E test ────────────────────────────────────────────────────────
+  # Runs the full Device Authorization Grant flow using Playwright against the
+  # containerized app. Only runs if smoke-test passes.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: smoke-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Build Docker image
+        run: docker build -t dev-portal-device-flow:ci .
+
+      - name: Start container
+        run: |
+          docker run -d --name device-flow-e2e -p 3000:3000 \
+            -e TENANT_URL=${{ secrets.TENANT_URL }} \
+            -e CLIENT_ID=${{ secrets.CLIENT_ID }} \
+            -e CLIENT_SECRET=${{ secrets.CLIENT_SECRET }} \
+            -e SCOPE=${{ secrets.SCOPE }} \
+            dev-portal-device-flow:ci
+
+      - name: Wait for app to be ready
+        run: |
+          echo "Waiting for app to respond on http://localhost:3000 ..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000 > /dev/null; then
+              echo "App is ready after ${i} attempt(s)"
+              exit 0
+            fi
+            echo "  attempt ${i}/30 — retrying in 2s"
+            sleep 2
+          done
+          echo "App did not become ready in time"
+          docker logs device-flow-e2e
+          exit 1
+
+      - name: Run E2E tests
+        env:
+          APP_URL: http://localhost:3000
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: npm test
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs device-flow-e2e || true
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop and remove container
+        if: always()
+        run: docker rm -f device-flow-e2e || true
