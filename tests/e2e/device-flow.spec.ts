@@ -232,18 +232,14 @@ async function waitForDeviceAuthenticated(devicePage: Page): Promise<void> {
 // Pre-flight guard
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.beforeAll(() => {
-  const missing: string[] = [];
-  if (!TEST_USERNAME) missing.push("TEST_USERNAME");
-  if (!TEST_PASSWORD) missing.push("TEST_PASSWORD");
-
-  if (missing.length > 0) {
-    throw new Error(
-      `E2E pre-flight failed — missing environment variables: ${missing.join(", ")}.\n` +
-        `Set them in .env or pass inline: TEST_USERNAME=... TEST_PASSWORD=... npm test`
-    );
-  }
-});
+// Skip the entire suite (yellow in CI) when credentials are absent rather than
+// failing (red).  test.skip() at suite level is the correct Playwright API for
+// this — beforeAll does not receive a { skip } fixture.
+test.skip(
+  !TEST_USERNAME || !TEST_PASSWORD,
+  "TEST_USERNAME and TEST_PASSWORD must be set to run E2E tests. " +
+    "Pass them inline: TEST_USERNAME=... TEST_PASSWORD=... npm test"
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test suite
@@ -349,9 +345,16 @@ test.describe("OAuth 2.0 Device Authorization Grant – IBM Security Verify", ()
           .waitForURL((url) => !url.pathname.includes("login"), {
             timeout: 15_000,
           })
-          .catch(() => {
-            // If no redirect occurs within the window the grant may still be
-            // in-flight; close anyway and let the device side catch it.
+          .catch((err: Error) => {
+            // No redirect within the window — grant may still be in-flight.
+            // Log a warning so CI output distinguishes this from a clean run;
+            // the device side's 90 s waitForDeviceAuthenticated will surface
+            // a proper failure if the grant was never issued.
+            console.warn(
+              "[device-flow] No post-auth redirect observed within 15 s — " +
+                "proceeding; device side will time out if grant was not issued. " +
+                `Reason: ${err.message}`
+            );
           });
       } finally {
         await userContext.close();

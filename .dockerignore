@@ -1,0 +1,26 @@
+# Version control
+.git
+.gitignore
+
+# Environment & secrets – NEVER bake into the image
+.env
+.env.*
+.secrets.baseline
+
+# Development artefacts
+node_modules
+npm-debug.log*
+
+# Test infrastructure
+tests/
+playwright-report/
+playwright.config.ts
+tsconfig.json
+
+# CI
+.github/
+
+# Editor / OS noise
+.DS_Store
+*.swp
+*.swo

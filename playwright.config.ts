@@ -47,10 +47,15 @@ export default defineConfig({
     /** Headless Chromium; override with --headed for local debugging. */
     headless: true,
 
-    /** Capture diagnostics on failure only — keeps CI artefacts small. */
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    /**
+     * Diagnostics disabled — trace/screenshot/video may capture IBM Verify
+     * login pages (credentials visible) on failure. Artifacts are uploaded to
+     * GitHub Actions where they could be inspected. Disable entirely in CI.
+     * Re-enable locally with: --trace on --video on (never commit that change).
+     */
+    trace: "off",
+    screenshot: "off",
+    video: "off",
   },
 
   projects: [

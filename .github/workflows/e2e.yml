@@ -6,7 +6,8 @@ on:
 jobs:
   # ── Job 1: Smoke test ──────────────────────────────────────────────────────
   # Verifies the app builds, starts, and responds on port 3000.
-  # If this fails, the E2E job is skipped entirely.
+  # The Docker image is exported as a tar artifact so the e2e job loads the
+  # exact same image — no second build, no risk of dependency drift between jobs.
   smoke-test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -29,6 +30,16 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t dev-portal-device-flow:ci .
+
+      - name: Export Docker image
+        run: docker save dev-portal-device-flow:ci | gzip > /tmp/docker-image.tar.gz
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/docker-image.tar.gz
+          retention-days: 1
 
       - name: Start container
         run: |
@@ -84,8 +95,14 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Build Docker image
-        run: docker build -t dev-portal-device-flow:ci .
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load < /tmp/docker-image.tar.gz
 
       - name: Start container
         run: |
@@ -111,6 +128,14 @@ jobs:
           docker logs device-flow-e2e
           exit 1
 
+      - name: Mask credentials in log output
+        # Defence-in-depth: GitHub Actions auto-masks secret values it knows
+        # about, but add-mask also redacts them from any Playwright console
+        # output or error messages that happen to contain the raw value.
+        run: |
+          echo "::add-mask::${{ secrets.TEST_PASSWORD }}"
+          echo "::add-mask::${{ secrets.CLIENT_SECRET }}"
+
       - name: Run E2E tests
         env:
           APP_URL: http://localhost:3000
@@ -121,15 +146,6 @@ jobs:
       - name: Dump container logs on failure
         if: failure()
         run: docker logs device-flow-e2e || true
-
-      - name: Upload Playwright artifacts on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-artifacts
-          path: test-results/
-          retention-days: 7
-          if-no-files-found: ignore
 
       - name: Stop and remove container
         if: always()
