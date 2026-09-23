@@ -28,9 +28,10 @@ const QRCode = require('qrcode')
 const app = express();
 app.use(
   session({
-    secret: "my-secret",
+    secret: process.env.SESSION_SECRET,
     resave: true,
     saveUninitialized: true,
+    cookie: { secure: true },
   })
 );
 
