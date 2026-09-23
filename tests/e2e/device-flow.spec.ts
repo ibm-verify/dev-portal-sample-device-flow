@@ -1,6 +1,6 @@
 /**
  * E2E test suite – OAuth 2.0 Device Authorization Grant (RFC 8628)
- * IBM Security Verify integration
+ * IBM Verify integration
  *
  * Source-of-truth mapping (do not change selectors without re-reading the app):
  *
@@ -21,7 +21,7 @@
  *               l.75  verifyToken: checks node-persist "tokenSet" (server-side state)
  *
  *  authenticated.pug l.5  h3 Welcome #{userInfo.displayName || userInfo.name || ...}
- *                    l.6  p.lead "You have successfully authenticated with IBM Security Verify."
+ *                    l.6  p.lead "You have successfully authenticated with IBM Verify."
  *                    l.29 a(href='/logout') "log out"
  *
  * ─────────────────────────────────────────────────────────────────────────────
@@ -245,7 +245,7 @@ test.skip(
 // Test suite
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe("OAuth 2.0 Device Authorization Grant – IBM Security Verify", () => {
+test.describe("OAuth 2.0 Device Authorization Grant – IBM Verify", () => {
   let browser: Browser;
   let deviceContext: BrowserContext;
   let devicePage: Page;

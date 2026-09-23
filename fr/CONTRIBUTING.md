@@ -5,7 +5,7 @@ Consultez les lignes directrices suivantes pour soumettre des questions, des pro
 
 ## Enjeux et questions
 
-Si vous rencontrez un problème, si vous avez une question ou si vous souhaitez suggérer une amélioration de l'application "device flow" du portail Dev, vous pouvez soumettre une [demande](https://github.com/ibm-security-verify/dev-portal-sample-device-flow/issues).
+Si vous rencontrez un problème, si vous avez une question ou si vous souhaitez suggérer une amélioration de l'application "device flow" du portail Dev, vous pouvez soumettre une [demande](https://github.com/ibm-verify/verify-devportal-deviceflow-js/issues).
 Avant cela, veuillez rechercher des problèmes similaires. Il est possible que quelqu'un ait déjà rencontré ce problème.
 
 ## Demandes d'extraction

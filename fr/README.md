@@ -8,7 +8,7 @@ Cet exemple montre comment utiliser la bibliothèque openid-client avec Node.js 
 1. Configurez les variables de votre fichier `.env`. Vous pouvez vous référer au fichier `.env.example` avec les variables requises pour exécuter cet exemple.
 3. Dans l'interface de gestion, entrez `npm install`
 4. Après avoir installé node_modules avec succès, démarrez l'application d'exemple à partir de l'interface de gestion en exécutant la commande suivante `npm run start`
-4. accédez à `http://localhost:3000` dans votre navigateur et suivez les instructions à l'écran pour authentifier votre application à l'aide du type de subvention d'authentification du flux de l'appareil avec IBM Security Verify.
+4. accédez à `http://localhost:3000` dans votre navigateur et suivez les instructions à l'écran pour authentifier votre application à l'aide du type de subvention d'authentification du flux de l'appareil avec IBM Verify.
 
 ## Flux d'utilisateurs
 - Cliquez sur le bouton `Device code` pour appeler le serveur d'autorisation afin de récupérer un code d'appareil valide.

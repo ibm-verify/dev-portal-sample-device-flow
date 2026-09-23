@@ -5,7 +5,7 @@ Review the following guidelines for submitting questions, issues, or changes to 
 
 ## Issues and Questions
 
-If you encounter an issue, have a question or want to suggest an enhancement to the Dev portal sample device flow app, you are welcome to submit a [request](https://github.com/ibm-security-verify/dev-portal-sample-device-flow/issues).
+If you encounter an issue, have a question or want to suggest an enhancement to the Dev portal sample device flow app, you are welcome to submit a [request](https://github.com/ibm-verify/verify-devportal-deviceflow-js/issues).
 Before that, please search for similar issues. It's possible somebody has encountered this issue already.
 
 ## Pull Requests
