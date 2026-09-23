@@ -48,6 +48,7 @@ jobs:
             -e CLIENT_ID=${{ secrets.CLIENT_ID }} \
             -e CLIENT_SECRET=${{ secrets.CLIENT_SECRET }} \
             -e SCOPE=${{ secrets.SCOPE }} \
+            -e SESSION_SECRET=${{ secrets.SESSION_SECRET }} \
             dev-portal-device-flow:ci
 
       - name: Wait for app to respond
@@ -111,6 +112,7 @@ jobs:
             -e CLIENT_ID=${{ secrets.CLIENT_ID }} \
             -e CLIENT_SECRET=${{ secrets.CLIENT_SECRET }} \
             -e SCOPE=${{ secrets.SCOPE }} \
+            -e SESSION_SECRET=${{ secrets.SESSION_SECRET }} \
             dev-portal-device-flow:ci
 
       - name: Wait for app to be ready
