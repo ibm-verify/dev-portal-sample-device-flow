@@ -4,7 +4,10 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "playwright test",
+    "test:e2e": "playwright test tests/e2e/device-flow.spec.ts",
+    "test:e2e:headed": "playwright test tests/e2e/device-flow.spec.ts --headed",
+    "test:e2e:debug": "playwright test tests/e2e/device-flow.spec.ts --debug",
     "start": "node server.js"
   },
   "contributors": [
@@ -36,5 +39,10 @@
     "pug": "^3.0.2",
     "qrcode": "^1.5.3",
     "socket.io": "^4.8.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^20",
+    "typescript": "^7.0.2"
   }
 }
