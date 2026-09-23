@@ -8,7 +8,7 @@ This sample shows how to use the openid-client library with Node.js to:
 1. Configure your `.env` file variables. You can refer to the `.env.example` file with the required variables to run this sample.
 3. From the CLI enter `npm install`
 4. After successfully intalling node_modules, from the CLI start the sample application by running `npm run start`
-4. navigate to `http://localhost:3000` in your browser and follow the on screen prompts to authenticate your app using the device flow authentication grant type with IBM Security Verify.
+4. navigate to `http://localhost:3000` in your browser and follow the on screen prompts to authenticate your app using the device flow authentication grant type with IBM Verify.
 
 ## User flow
 - Click the `Device code` button to call the Authorization server to retrieve a valid device code.

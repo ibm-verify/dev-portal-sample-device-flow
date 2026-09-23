@@ -1,6 +1,6 @@
 {
-  "name": "dev-portal-sample-device-flow",
-  "version": "1.0.0",
+  "name": "verify-devportal-deviceflow-js",
+  "version": "1.0.1",
   "description": "",
   "main": "server.js",
   "scripts": {

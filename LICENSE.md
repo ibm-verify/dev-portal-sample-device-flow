@@ -1,6 +1,6 @@
 MIT License
 
-Copyright contributors to the IBM Security Verify Developer Portal Sample App for Device Code Flow project
+Copyright contributors to the IBM Verify Developer Portal Sample App for Device Code Flow project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
